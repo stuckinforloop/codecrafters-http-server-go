@@ -1,6 +1,7 @@
 package server
 
 import (
+	"bytes"
 	"errors"
 	"fmt"
 	"net"
@@ -20,6 +21,7 @@ func handle(conn net.Conn, dir string) error {
 	if len(lines) < 3 {
 		return fmt.Errorf("invalid request")
 	}
+
 	path, ok := getPath(lines[0])
 	if !ok {
 		if path == "" {
@@ -50,7 +52,17 @@ func handle(conn net.Conn, dir string) error {
 	default:
 		if strings.HasPrefix(path, "/files") {
 			filename := strings.TrimPrefix(path, "/files/")
-			msg = genFileMessage(conn, dir, filename)
+
+			method := strings.Split(lines[0], " ")[0]
+			if method == "POST" {
+				body := bytes.Split(b, []byte("\r\n\r\n"))[1]
+				if err := createFile(dir, filename, body); err != nil {
+					return fmt.Errorf("create file: %w", err)
+				}
+				msg = "HTTP/1.1 201 OK\r\n\r\n"
+			} else {
+				msg = genFileMessage(conn, dir, filename)
+			}
 		} else {
 			msg = genMessage(path)
 		}
@@ -113,4 +125,20 @@ func genFileMessage(conn net.Conn, dir, filename string) string {
 	msg += string(body)
 
 	return msg
+}
+
+func createFile(dir, filename string, body []byte) error {
+	filePath := filepath.Join(dir, filename)
+
+	f, err := os.Create(filePath)
+	if err != nil {
+		return fmt.Errorf("create file: %w", err)
+	}
+	defer f.Close()
+
+	if _, err := f.Write(body); err != nil {
+		return fmt.Errorf("write to file: %w", err)
+	}
+
+	return nil
 }
