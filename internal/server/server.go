@@ -1,6 +1,7 @@
 package server
 
 import (
+	"context"
 	"fmt"
 	"net"
 )
@@ -19,7 +20,7 @@ func New(addr, dir, network string) *Server {
 	}
 }
 
-func (s *Server) Start() error {
+func (s *Server) Start(ctx context.Context) error {
 	l, err := net.Listen(s.network, s.addr)
 	if err != nil {
 		return fmt.Errorf("bind to port %s: %w", s.addr, err)
