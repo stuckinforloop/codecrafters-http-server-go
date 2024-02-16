@@ -1,7 +1,6 @@
 package server
 
 import (
-	"bytes"
 	"errors"
 	"fmt"
 	"net"
@@ -55,7 +54,8 @@ func handle(conn net.Conn, dir string) error {
 
 			method := strings.Split(lines[0], " ")[0]
 			if method == "POST" {
-				body := bytes.Split(b, []byte("\r\n\r\n"))[1]
+				body := strings.Split(string(b), "\r\n\r\n")[1]
+				body = strings.Trim(body, "\x00")
 				if err := createFile(dir, filename, body); err != nil {
 					return fmt.Errorf("create file: %w", err)
 				}
@@ -127,7 +127,7 @@ func genFileMessage(conn net.Conn, dir, filename string) string {
 	return msg
 }
 
-func createFile(dir, filename string, body []byte) error {
+func createFile(dir, filename, body string) error {
 	filePath := filepath.Join(dir, filename)
 
 	f, err := os.Create(filePath)
@@ -136,7 +136,7 @@ func createFile(dir, filename string, body []byte) error {
 	}
 	defer f.Close()
 
-	if _, err := f.Write(body); err != nil {
+	if _, err := f.Write([]byte(body)); err != nil {
 		return fmt.Errorf("write to file: %w", err)
 	}
 
